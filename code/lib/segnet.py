@@ -3,6 +3,8 @@
 #####################################################################
 # This script is the implementation of SegNet model by Keras
 
+import numpy as np
+from tqdm import tqdm
 from keras.models import Model, load_model
 from keras.layers import Input, Conv2D, BatchNormalization, Activation, MaxPool2D, UpSampling2D
 from keras.optimizers import Adam
@@ -10,111 +12,111 @@ from keras.callbacks import EarlyStopping, ModelCheckpoint
 
 
 class segnet(object):
-    def __init__(self, img_height, img_width, img_channels, metrics, learning_rate=1e-4):
-        self.img_height = img_height
-        self.img_width = img_width
-        self.img_channels = img_channels
+    def __init__(self, img_shape, metrics, init_filters=16, learning_rate=1e-4):
+        self.img_shape = img_shape
         self.metrics = metrics
+        self.init_filters = init_filters
         self.model = self.init_model(metrics=metrics, learning_rate=learning_rate)
 
     def init_model(self, metrics, learning_rate):
         print('Initilizing SegNet model ... ', end='', flush=True)
-        inputs = Input(shape=(self.img_height, self.img_width, self.img_channels))
-
+        f = self.init_filters
+        inputs = Input(shape=self.img_shape)
+        
         ### encoding layers
-        conv1 = Conv2D(16, (3,3), padding='same') (inputs)
+        conv1 = Conv2D(f, (3,3), padding='same') (inputs)
         conv1 = BatchNormalization() (conv1)
         conv1 = Activation('relu') (conv1)
-        conv1 = Conv2D(16, (3,3), padding='same') (conv1)
+        conv1 = Conv2D(f, (3,3), padding='same') (conv1)
         conv1 = BatchNormalization() (conv1)
         conv1 = Activation('relu') (conv1)
         pool1 = MaxPool2D(pool_size=(2,2)) (conv1)
 
-        conv2 = Conv2D(32, (3,3), padding='same') (pool1)
+        conv2 = Conv2D(f*2, (3,3), padding='same') (pool1)
         conv2 = BatchNormalization() (conv2)
         conv2 = Activation('relu') (conv2)
-        conv2 = Conv2D(32, (3,3), padding='same') (conv2)
+        conv2 = Conv2D(f*2, (3,3), padding='same') (conv2)
         conv2 = BatchNormalization() (conv2)
         conv2 = Activation('relu') (conv2)
         pool2 = MaxPool2D(pool_size=(2,2)) (conv2)
 
-        conv3 = Conv2D(64, (3,3), padding='same') (pool2)
+        conv3 = Conv2D(f*4, (3,3), padding='same') (pool2)
         conv3 = BatchNormalization() (conv3)
         conv3 = Activation('relu') (conv3)
-        conv3 = Conv2D(64, (3,3), padding='same') (conv3)
+        conv3 = Conv2D(f*4, (3,3), padding='same') (conv3)
         conv3 = BatchNormalization() (conv3)
         conv3 = Activation('relu') (conv3)
-        conv3 = Conv2D(64, (3,3), padding='same') (conv3)
+        conv3 = Conv2D(f*4, (3,3), padding='same') (conv3)
         conv3 = BatchNormalization() (conv3)
         conv3 = Activation('relu') (conv3)
         pool3 = MaxPool2D(pool_size=(2,2)) (conv3)
 
-        conv4 = Conv2D(128, (3,3), padding='same') (pool3)
+        conv4 = Conv2D(f*8, (3,3), padding='same') (pool3)
         conv4 = BatchNormalization() (conv4)
         conv4 = Activation('relu') (conv4)
-        conv4 = Conv2D(128, (3,3), padding='same') (conv4)
+        conv4 = Conv2D(f*8, (3,3), padding='same') (conv4)
         conv4 = BatchNormalization() (conv4)
         conv4 = Activation('relu') (conv4)
-        conv4 = Conv2D(128, (3,3), padding='same') (conv4)
+        conv4 = Conv2D(f*8, (3,3), padding='same') (conv4)
         conv4 = BatchNormalization() (conv4)
         conv4 = Activation('relu') (conv4)
         pool4 = MaxPool2D(pool_size=(2,2)) (conv4)
 
-        conv5 = Conv2D(128, (3,3), padding='same') (pool4)
+        conv5 = Conv2D(f*8, (3,3), padding='same') (pool4)
         conv5 = BatchNormalization() (conv5)
         conv5 = Activation('relu') (conv5)
-        conv5 = Conv2D(128, (3,3), padding='same') (conv5)
+        conv5 = Conv2D(f*8, (3,3), padding='same') (conv5)
         conv5 = BatchNormalization() (conv5)
         conv5 = Activation('relu') (conv5)
-        conv5 = Conv2D(128, (3,3), padding='same') (conv5)
+        conv5 = Conv2D(f*8, (3,3), padding='same') (conv5)
         conv5 = BatchNormalization() (conv5)
         conv5 = Activation('relu') (conv5)
         pool5 = MaxPool2D(pool_size=(2,2)) (conv5)
 
         ### decoding layers
         up6 = UpSampling2D((2,2)) (pool5)
-        conv6 = Conv2D(128, (3,3), padding='same') (up6)
+        conv6 = Conv2D(f*8, (3,3), padding='same') (up6)
         conv6 = BatchNormalization() (conv6)
         conv6 = Activation('relu') (conv6)
-        conv6 = Conv2D(128, (3,3), padding='same') (conv6)
+        conv6 = Conv2D(f*8, (3,3), padding='same') (conv6)
         conv6 = BatchNormalization() (conv6)
         conv6 = Activation('relu') (conv6)
-        conv6 = Conv2D(128, (3,3), padding='same') (conv6)
+        conv6 = Conv2D(f*8, (3,3), padding='same') (conv6)
         conv6 = BatchNormalization() (conv6)
         conv6 = Activation('relu') (conv6)
 
         up7 = UpSampling2D((2,2)) (conv6)
-        conv7 = Conv2D(128, (3,3), padding='same') (up7)
+        conv7 = Conv2D(f*8, (3,3), padding='same') (up7)
         conv7 = BatchNormalization() (conv7)
         conv7 = Activation('relu') (conv7)
-        conv7 = Conv2D(128, (3,3), padding='same') (conv7)
+        conv7 = Conv2D(f*8, (3,3), padding='same') (conv7)
         conv7 = BatchNormalization() (conv7)
         conv7 = Activation('relu') (conv7)
-        conv7 = Conv2D(64, (3,3), padding='same') (conv7)
+        conv7 = Conv2D(f*4, (3,3), padding='same') (conv7)
         conv7 = BatchNormalization() (conv7)
         conv7 = Activation('relu') (conv7)
 
         up8 = UpSampling2D((2,2)) (conv7)
-        conv8 = Conv2D(64, (3,3), padding='same') (up8)
+        conv8 = Conv2D(f*4, (3,3), padding='same') (up8)
         conv8 = BatchNormalization() (conv8)
         conv8 = Activation('relu') (conv8)
-        conv8 = Conv2D(64, (3,3), padding='same') (conv8)
+        conv8 = Conv2D(f*4, (3,3), padding='same') (conv8)
         conv8 = BatchNormalization() (conv8)
         conv8 = Activation('relu') (conv8)
-        conv8 = Conv2D(32, (3,3), padding='same') (conv8)
+        conv8 = Conv2D(f*2, (3,3), padding='same') (conv8)
         conv8 = BatchNormalization() (conv8)
         conv8 = Activation('relu') (conv8)
 
         up9 = UpSampling2D((2,2)) (conv8)
-        conv9 = Conv2D(32, (3,3), padding='same') (up9)
+        conv9 = Conv2D(f*2, (3,3), padding='same') (up9)
         conv9 = BatchNormalization() (conv9)
         conv9 = Activation('relu') (conv9)
-        conv9 = Conv2D(16, (3,3), padding='same') (conv9)
+        conv9 = Conv2D(f, (3,3), padding='same') (conv9)
         conv9 = BatchNormalization() (conv9)
         conv9 = Activation('relu') (conv9)
 
         up10 = UpSampling2D((2,2)) (conv9)
-        conv10 = Conv2D(16, (3,3), padding='same') (up10)
+        conv10 = Conv2D(f, (3,3), padding='same') (up10)
         conv10 = BatchNormalization() (conv10)
         conv10 = Activation('relu') (conv10)
         conv10 = Conv2D(1, (1,1)) (conv10)
@@ -144,13 +146,15 @@ class segnet(object):
         print('Done')
 
 
-    def load_Model(self, path):
-        print('Loading model ... ', end='', flush=True)
-        self.model = load_model(path)
+    def load_Model(self, path, metrics):
+        print('Loading SegNet model ... ', end='', flush=True)
+        self.model = load_model(path, custom_objects=metrics)
         print('Done')
     
 
     def predict(self, X):
+        print('Predicting with Seg-Net ... ', flush=True)
+        sys.stdout.flush()
         y = self.model.predict(X, verbose=1)
-        return(y)
+        return y
 

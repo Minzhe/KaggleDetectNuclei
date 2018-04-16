@@ -13,27 +13,32 @@ from skimage.morphology import label
 
 #########################  load and transform data  ###########################
 
-def getResizeImage(path, height=256, width=256, channels=3):
+def getResizeDiscolorImage(path, height=256, width=256):
     '''
-    Read and resize images
+    Read, resize and discolor images
     '''
     # get all folder ids
     ids = next(os.walk(path))[1]
 
     # initialize vector
-    imgs = np.zeros((len(ids), height, width, channels), dtype=np.dtype(float).type)
+    imgs = np.zeros((len(ids), height, width, 1), dtype=np.dtype(float).type)
     size_ori = []
+    ids_col = []
 
     # read images
     print('Getting and resizing images ... ', flush=True)
     for n, id_ in tqdm(enumerate(ids), total=len(ids)):
         tmp_path = os.path.join(path, id_, 'images', id_+'.png')
-        tmp_img = imread(tmp_path)[:,:,:3]  # RGB channels
-        size_ori.append(tmp_img.shape[:2])  # (height, width)
+        tmp_img = imread(tmp_path, as_grey=True)  # convert to grey image
+        tmp_img = np.expand_dims(tmp_img, axis=-1)
+        if tmp_img.mean() > 0.5:
+            tmp_img = 1 - tmp_img                 # probably this image is colorful, and white background
+            ids_col.append(id_)
+        size_ori.append(tmp_img.shape[:2])            # (height, width)
         tmp_img = resize(tmp_img, output_shape=(height, width), mode='constant', preserve_range=False)
         imgs[n] = tmp_img
     
-    return imgs, ids, size_ori
+    return imgs, ids, size_ori, ids_col
 
 
 def getResizeMask(path, height=256, width=256, threshold=0.5):
@@ -63,9 +68,9 @@ def getResizeMask(path, height=256, width=256, threshold=0.5):
     return masks
 
 
-def restoreImage(imgs, size_ori, threshold):
+def restoreMasks(imgs, size_ori, threshold):
     '''
-    Resize images to original size
+    Resize masks to original size
     @param imgs: predicted images
     @param size_ori: original image sizes before transformation
     @param threshold: cutoff of a pixal to be 1 after resized
@@ -117,6 +122,8 @@ def convert2Sub(y_pred, ids):
     print('Preparing submission data for test images ... ', flush=True)
     for n, id_ in tqdm(enumerate(ids), total=len(ids)):
         rle_ = list(_prob_to_rles(y_pred[n]))
+        if (len(rle_) == 0):
+            print('Warnings: no nuclei detected in image {}'.format(id_))
         rles.extend(rle_)
         sub_ids.extend([id_] * len(rle_))
 
